@@ -1,0 +1,12 @@
+<?php
+
+function cm_cablecast_advanced_synch_install() {
+
+}
+
+function cm_cablecast_advanced_synch_uninstall() {
+
+  // delete variables
+  //variable_del('cm_cablecast_advanced_synch_bidirectional_airings');
+
+}

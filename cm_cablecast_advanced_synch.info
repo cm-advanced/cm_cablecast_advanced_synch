@@ -1,0 +1,11 @@
+name = CMA Cablecast Advanced Synch
+description = Relies on the cm_cablecast module and will allow bidirectional synching with drupal and cablecast
+core = 7.x
+package = Community Media Advanced
+version = 7.x-1.0
+project = "cm_cablecast_advanced_synch"
+project_status_url = https://github.com/cm-advanced/cm_cablecast_advanced_synch
+
+
+dependencies[] = cm_cablecast
+dependencies[] = cablecast_api

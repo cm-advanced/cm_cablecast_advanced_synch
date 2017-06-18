@@ -1,0 +1,1418 @@
+<?php
+
+/** @file
+ *  Tightrope Cablecast integration for the Community Media Startertkit
+ *  Drupal profile
+ */
+
+/**
+ * Implements hook_menu()
+ *
+ * @return array
+ */
+function cm_cablecast_advanced_synch_menu() {
+  $items = array();
+
+  // Standard Administration settings.
+  $items['admin/config/communitymedia/cm_cablecast_advanced_synch'] = array(
+    'title' => 'CM Cablecast Advanced Synch Configuration',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('cm_cablecast_advanced_synch_admin_settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer cm_cablecast'),
+    'description' => 'Configure system options for Community Media Cablecast Advanced Synch.',
+  );
+
+  $items['admin/programming/cm_cablecast_advanced_synch_form'] = array(
+    'title' => 'CM Cablecast Advanced Synch Form',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('cm_cablecast_advanced_synch_form'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer cm_cablecast'),
+    'description' => t('Form that will allow Cablecast/Drupal Synching for a
+                        date range'),
+  );
+
+  $items['admin/programming/cm_cablecast_advanced_synch_resolution_form'] = 
+    array(
+	  'title' => 'CM Cablecast Advanced Synch Resolution Form',
+	  'page callback' => 'drupal_get_form',
+	  'page arguments' => 
+	  array('cm_cablecast_advanced_synch_resolution_form'),
+	  'access callback' => 'user_access',
+	  'access arguments' => array('administer cm_cablecast'),
+	  'description' => t('Form that will allow the user to resolve a 
+                              difference between a Drupal Show/Airing with a 
+                              Cablecast Show.'),
+	  'type' => MENU_CALLBACK,
+	  );
+
+  return $items;
+}
+
+/**
+ *Form that will allow the user to resolve a difference between a 
+ * Drupal Show/Airing with a Cablecast Show.
+ */
+function cm_cablecast_advanced_synch_resolution_form() {
+  $form = array();
+  $form['submit'] = array(
+			  '#type' => 'submit',
+			  '#value' => 'Submit',
+			  );
+  return $form;
+}
+
+/**
+ * Submit Handler for the Form that will allow the user to resolve a 
+ * difference between a Drupal Show/Airing with a Cablecast Show.
+ */
+function cm_cablecast_advanced_synch_resolution_form_submit($form, 
+							    &$form_state) {
+  dsm($form, 'in submit');
+
+  //FIXME
+  //FIGURE OUT WHICH WAY THE DATA IS GOING AND PUSH OR PULL IT
+}
+
+/**
+ * Form that will allow Cablecast/Drupal Synching for a date range
+ */
+function cm_cablecast_advanced_synch_form() {
+  $form = array();
+
+
+  $form['cm_cablecast_advanced_synch_form'] = array(
+    '#type' => 'fieldset',
+    '#title' => "<h2>".t('Community Media Advanced Synch Cablecast Form').
+    "</h2>",
+    '#collapsable' => FALSE,
+  );
+
+  $format = 'Y-m-d';
+  $default_start = $_SESSION['cm_cablecast_advanced_synch_form_start_day'];
+  $default_start = $default_start ? $default_start : date('Y-m-d');
+
+  $default_end = $_SESSION['cm_cablecast_advanced_synch_form_end_day'];
+  $default_end = $default_end ? $default_end : 
+    date('Y-m-d', strtotime("+1 week"));
+
+  $default_mode = $_SESSION['cm_cablecast_advanced_synch_form_mode'];
+  $default_mode = $default_mode ? $default_mode : 'none';
+
+  $form['cm_cablecast_advanced_synch_form']['start_day'] = 
+    array(
+	  '#type' => 'date_popup', 
+	  '#title' => t('Start Day:'),
+	  '#date_label_position' => 'within',
+	  '#default_value' => $default_start,
+	  '#description' => 
+	  t('Enter the start day of the time range to compare programming.'),
+	  '#date_format' => $format,
+	  '#prefix' => "<table><tr><td>",
+	  '#suffix' => "</td><td>",
+	  );
+
+  $form['cm_cablecast_advanced_synch_form']['end_day'] = 
+    array(
+	  '#type' => 'date_popup', 
+	  '#title' => t('End Day:'),
+	  '#date_label_position' => 'within',
+	  '#default_value' => $default_end,
+	  '#description' => 
+	  t('Enter the end day of the time range to compare programming.'),
+	  '#date_format' => $format,
+	  '#suffix' => "</td></tr></table>",
+	  );
+  $form['cm_cablecast_advanced_synch_form']['submit'] = 
+    array(
+	  '#type' => 'submit',
+	  '#value' => 'Submit',
+	  );
+
+  $data = isset($_SESSION['cm_cablecast_advanced_synch_data']) ?
+    $_SESSION['cm_cablecast_advanced_synch_data'] : array();
+      
+  if ($data) {
+    
+    $_SESSION['cm_cablecast_advanced_synch_data'] = NULL;
+    $start = $_SESSION['cm_cablecast_advanced_synch_form_start_day'];
+    $end = $_SESSION['cm_cablecast_advanced_synch_form_end_day'];
+    $title = "<h2>".t("Synch Status Report from @start to @end",
+	       array('@start'=>$start, '@end'=>$end))."</h2>";
+
+    $form['cm_cablecast_advanced_synch_data'] = array(
+						      '#type' => 'fieldset',
+						      '#title' => $title,
+						      '#collapsable' => FALSE,
+						      );
+    
+    $header = "";
+
+    $header .= "<h3>".t("Successfully Synched Programming")."</h3>";
+    $header .= "<ul>";
+
+    $header .= "<li>".t("Number of Synched Airings:") . " ".
+      count($data['synched_airings'])."</li>";
+    $header .= "<li>".t("Number of Synched Shows:") . " ".
+      count($data['synched_shows'])."</li>";
+    $header .= "<li>".t("Number of Synched Projects:") . " ".
+      count($data['synched_projects'])."</li>";
+    $header .= "<li>".t("Number of Synched Producers:") . " ".
+      count($data['synched_producers'])."</li>";
+
+    $header .= "</ul>";
+
+    if (count($data['cablecast_only_producers']) ||
+	count($data['cablecast_only_projects']) ||
+	count($data['cablecast_only_shows']) ||
+	count($data['cablecast_only_airings'])) {
+
+      $header .= "<h3>".t("Programming Missing in Drupal")."</h3>";
+      $header .= "<ul>";
+      $header .= count($data['cablecast_only_airings']) ?
+      "<li>".t("Number of Airings that are only in Cablecast:"). " " .
+	count($data['cablecast_only_airings'])."</li>"
+	: "";
+
+      $header .= "<ul><li>".l("Push Airings to Drupal", "")."</li></ul>";
+      
+      $header .= count($data['cablecast_only_shows']) ?
+	"<li>".t("Number of Shows that are only in Cablecast:"). " " .
+	count($data['cablecast_only_shows'])."</li>"
+	: "";
+
+      $header .= count($data['cablecast_only_shows']) ?
+	"<ul><li>".l("Push Shows to Drupal", "")."</li></ul>" : '';
+
+      $header .= count($data['cablecast_only_projects']) ?
+	"<li>".t("Number of Projects that are only in Cablecast:"). " " .
+	count($data['cablecast_only_projects'])."</li>"
+	: "";
+
+      $header .= count($data['cablecast_only_projects']) ?
+	"<ul><li>".l("Push Projects to Drupal", "")."</li></ul>" : "";
+
+      $header .= count($data['cablecast_only_producers']) ?
+	"<li>".t("Number of Producers that are only in Cablecast:"). " " .
+	count($data['cablecast_only_producers'])."</li>"
+	: "";
+
+      $header .= count($data['cablecast_only_producers']) ?
+	"<ul><li>".l("Push Producers to Drupal", "")."</li></ul>" : "";
+      $header .= "</ul>";
+    }
+
+    if (count($data['drupal_only_producers']) ||
+	count($data['drupal_only_projects']) ||
+	count($data['drupal_only_shows']) ||
+	count($data['drupal_only_airings'])) {
+
+      $header .= "<h3>".t("Programming Missing in Cablecast")."</h3>";
+      $header .= "<ul>";
+      $header .= count($data['drupal_only_airings']) ?
+      "<li>".t("Number of Airings that are only in Drupal:"). " " .
+	count($data['drupal_only_airings'])."</li>"
+	: "";
+
+      $header .= count($data['drupal_only_airings']) ?
+	"<ul><li>".l("Push Airings to Cablecast", "")."</li></ul>" : "";
+
+      $header .= count($data['drupal_only_shows']) ?
+	"<li>".t("Number of Shows that are only in Drupal:"). " " .
+	count($data['drupal_only_shows'])."</li>"
+	: "";
+      $header .= count($data['drupal_only_shows']) ?
+	"<ul><li>".l("Push Shows to Cablecast", "")."</li></ul>" : "";
+
+      $header .= count($data['drupal_only_projects']) ?
+	"<li>".t("Number of Projects that are only in Drupal:"). " " .
+	count($data['drupal_only_projects'])."</li>"
+	: "";
+      $header .= count($data['drupal_only_projects']) ?
+	"<ul><li>".l("Push Projects to Cablecast", "")."</li></ul>" : "";
+
+      $header .= count($data['drupal_only_producers']) ?
+	"<li>".t("Number of Producers that are only in Drupal:"). " " .
+	count($data['drupal_only_producers'])."</li>"
+	: "";
+
+      $header .= count($data['drupal_only_producers']) ?
+	"<ul><li>".l("Push Producers to Cablecast", "")."</li></ul>" : "";
+      
+      $header .= "</ul>";
+    }
+
+    $header .= "<h3>".t("Conflicting Programming")."</h3>";
+    $header .= "<ul>";
+
+    $header .= "<li>".t("Number of Conflicting Airings:") . " " .
+      count($data['conflicting_airings'])."</li>";
+      $header .= "<ul><li>".l("Push to Drupal", "")."</li>";
+      $header .= "<li>".l("Push to Cablecast", "")."</li></ul>";
+
+    $header .= "<li>".t("Number of Conflicting Shows:") . " " .
+      count($data['conflicting_shows'])."</li>";
+      $header .= "<ul><li>".l("Push to Drupal", "")."</li>";
+      $header .= "<li>".l("Push to Drupal", "")."</li></ul>";
+
+    $header .= "<li>".t("Number of Conflicting Projects:") . " " .
+      count($data['conflicting_projects'])."</li>";
+      $header .= "<ul><li>".l("Push to Drupal", "")."</li>";
+      $header .= "<li>".l("Push to Drupal", "")."</li></ul>";
+
+    $header .= "<li>".t("Number of Conflicting Producers:") . " " .
+      count($data['conflicting_producers'])."</li>";
+      $header .= "<ul><li>".l("Push to Drupal", "")."</li>";
+      $header .= "<li>".l("Push to Drupal", "")."</li></ul>";
+
+    $header .= "</ul>";
+
+
+    $header .= "<h3>".t("Cablecast Programming")."</h3>";
+    $header .= "<ul>";
+
+    $header .= "<li>".t("Number of Cablecast Airings:") . " " .
+      count($data['cablecast_airings'])."</li>";
+    $header .= "<li>".t("Number of Cablecast Shows:") . " " .
+      count($data['cablecast_shows'])."</li>";
+    $header .= "<li>".t("Number of Cablecast Projects:") . " " .
+      count($data['cablecast_projects'])."</li>";
+    $header .= "<li>".t("Number of Cablecast Producers:") . " " .
+      count($data['cablecast_producers'])."</li>";
+
+    $header .= "</ul>";
+
+    $header .= "<h3>".t("Drupal Programming")."</h3>";
+    $header .= "<ul>";
+
+    $header .= "<li>".t("Number of Drupal Airings:") . " " .
+      count($data['drupal_airings'])."</li>";
+    $header .= "<li>".t("Number of Drupal Shows:") . " " .
+      count($data['drupal_shows'])."</li>";
+    $header .= "<li>".t("Number of Drupal Projects:") . " " .
+      count($data['drupal_projects'])."</li>";
+    $header .= "<li>".t("Number of Drupal Producers:") . " " .
+      count($data['drupal_producers'])."</li>";
+
+    $header .= "</ul>";
+
+    $form['cm_cablecast_advanced_synch_data']['header'] = array(
+								'#markup' =>
+								$header
+								);
+
+
+    ///////////////////////////////////////////////////////////////////////
+    //RAW DATA TABLES
+    $display = '<table style="border: 1px solid black;">';
+    $display.="<tr><th>Drupal</th><th>Status</th><th>Cablecast</th></tr>";
+    foreach ($data['display'] as $time=>$airings) {
+      foreach ($airings as $airing) {
+	$display .= "<tr>";
+	$left = $center = $right = '';
+	$d_airing_id = $airing['drupal'] ;
+	$cc_airing_id= $airing['cablecast'];
+
+	// if airing exists in the drupal only then D-fill, S-Alert,  C-Empty
+	if ($data['drupal_only_airings'][$d_airing_id]) {
+	  foreach ((array)$data['drupal_only_airings'][$d_airing_id] as 
+		   $field=>$value) {
+	    if ($value) {
+	      $left .= "$field: $value <br/>";
+	    }
+	  }
+	  $left .= l("Push to Cablecast", "")."<br/>";
+	  $center = "<strong>".
+	    $data['drupal_only_airings'][$d_airing_id]->d_start . " to <br/>".
+	    $data['drupal_only_airings'][$d_airing_id]->d_end. " <br/>".
+	    "Channel: ".
+	    $data['drupal_only_airings'][$d_airing_id]->d_channel_tid.
+	    "</strong><br/>";
+	  $center .= "Alert! <br/> Missing Cablecast Airing";
+	  $right = "";	  
+	}         
+	//if airing exists in the cablecast only then D-Empty, S-Alert, C-Fill
+	else if ($data['cablecast_only_airings'][$cc_airing_id]) {
+	  foreach ((array)$data['cablecast_only_airings'][$cc_airing_id] as 
+		   $field=>$value) {
+	    if ($value) {
+	      $right .= "$field: $value <br/>";
+	    }
+	  }
+	  $right .= l("Push to Drupal", "")."<br/>";
+	  $center = "<strong>".
+	    $data['cablecast_airings'][$cc_airing_id]->StartTime. " to <br/>".
+	    $data['cablecast_airings'][$cc_airing_id]->EndTime." <br/>".
+	    "Channel: ".
+	    $data['cablecast_airings'][$cc_airing_id]->Channel.
+	    "</strong><br/>";
+
+	  $center .= "Alert! <br/> Missing Drupal Airing";
+	  $left = "";	  
+
+	}         
+	//if airing exists in conflicts with cc-id then D-Fill, S-Diff, C-Fill
+	else if ($data['conflicting_airings'][$cc_airing_id]) {
+	  $cc_channel_id = 
+	    $data['cablecast_airings'][$cc_airing_id]->Channel;
+	  $channel = 
+	    cm_cablecast_advanced_synch_get_channel_label($cc_channel_id,
+							  'cablecast');
+
+	  $timestamp = 
+	    strtotime($data['cablecast_airings'][$cc_airing_id]->StartTime);
+	  $date = date('Y-m-d', $timestamp);
+	  $start = date('H:i:s', $timestamp);
+
+	  $timestamp = 
+	    strtotime($data['cablecast_airings'][$cc_airing_id]->EndTime);
+	  $end = date('H:i:s',$timestamp);
+
+	  $center = 
+	    "<strong>$channel $date<br/>$start - $end<br/></strong><br/>";
+
+
+	  $img = 
+	    '<img style="width:50px;vertical-align:middle"'.
+	    'src="/sites/default/files/15107_wpm_lowres.png"'.    
+	    'alt="Conflict!" title="Conflict!"/>';
+
+	  $center .= "<b>Conflict!</b>$img<b>Conflict!</b> <br/>";
+	  $is_first = TRUE;
+	  foreach ((array)$data['conflicting_airings'][$cc_airing_id] as 
+		   $field=>$value) {
+	    if ($is_first) {
+	      $is_first = FALSE;
+	      $conflict_table = "<table>";
+	    }
+	    if ($value) {
+	      $conflict_table .= 
+		"<tr><td colspan='2' align='left'><h4>$field</h4></b></tr>";
+	      $conflict_table .= 
+		"<tr><td align='left'><b>Drupal:</b></td><td align='left'>"
+		.$value['drupal']."</td></tr><tr>".
+		"<td align='left'><b>Cablecast:</b></td>".
+		"<td align='left'> ".$value['cablecast']."</td></tr>";
+	    }
+	  }
+	  $conflict_table .= "</table>";
+	  $center .= $conflict_table;
+	  
+	  $center .= l("Push to Drupal", "")."<br/>";
+	  $center .= l("Push to Cablecast", "")."<br/>";
+	  
+	  foreach ((array)$data['drupal_airings'][$d_airing_id] as 
+		   $field=>$value) {
+	    if ($value) {
+	      $left .= "$field: $value <br/>";
+	    }
+	  }
+	  foreach ((array)$data['cablecast_airings'][$cc_airing_id] as 
+		   $field=>$value) {
+	    if ($value) {
+	      $right .= "$field: $value <br/>";
+	    }
+	  }
+
+
+	}         
+	//if airing exists in the synched then then D-Empty, S-Empty, C-Fill
+	else {
+	  $center = "<strong>".
+	    $data['cablecast_airings'][$cc_airing_id]->StartTime. " to <br/>".
+	    $data['cablecast_airings'][$cc_airing_id]->EndTime." <br/>".
+	    "Channel: ".
+	    $data['cablecast_airings'][$cc_airing_id]->Channel.
+	    "</strong><br/>";
+
+	  $center .= "Successfully Synched! <br/>";
+	  
+	  foreach ((array)$data['drupal_airings'][$d_airing_id] as 
+		   $field=>$value) {
+	    if ($value) {
+	      $left .= "$field: $value <br/>";
+	    }
+	  }
+	  foreach ((array)$data['cablecast_airings'][$cc_airing_id] as 
+		   $field=>$value) {
+	    if ($value) {
+	      $right .= "$field: $value <br/>";
+	    }
+	  }
+
+	}         
+
+	$display .= 
+	  '<td style="border: 1px solid black;text-align: left;">'.
+	  $left."</td>";
+	
+	$display .= 
+	  '<td  style="border: 1px solid black;text-align: center;">'.
+	  $center."</td>";
+	
+	$display .=
+	  "<td  style='border: 1px solid black;text-align: right;'>".
+	  $right."</td>";
+
+	$display  .= "</tr>";
+      }
+    }
+    $display .= "</table>";
+
+    //fixme, add somewhere more elegant
+  ctools_add_js('collapsible-div');
+  ctools_add_css('collapsible-div');
+
+    $form['cm_cablecast_advanced_synch_data']['display'] = 
+      array(
+	    '#type' => 'fieldset',
+	    '#title' => "All Scheduled Programming",
+	    '#collapsible' => TRUE,
+	    '#collapsed' => TRUE,
+						      );
+
+    $form['cm_cablecast_advanced_synch_data']['display']['tables'] = 
+      array('#markup' => $display);
+
+    //dsm($data, 'my data');
+  }
+
+  return $form;
+
+}
+
+
+/**
+ * Validate Handler for the Form that will allow Cablecast/Drupal Synching 
+ * for a date range
+ */
+function cm_cablecast_advanced_synch_form_validate($form, &$form_state) {
+  //FIXME CHECK TO MAKE SURE THE END DAY IS LATER THE THE START DAY
+}
+
+/**
+ * Submit Handler for the Form that will allow Cablecast/Drupal Synching for 
+ * a date range
+ */
+function cm_cablecast_advanced_synch_form_submit($form, &$form_state) {
+  //GET DATES
+  $start_day = 
+    $form['cm_cablecast_advanced_synch_form']['start_day']['#value']['date'];
+  $end_day = 
+    $form['cm_cablecast_advanced_synch_form']['end_day']['#value']['date'];
+
+  cm_cablecast_advanced_synch_synch($start_day, $end_day);
+}
+
+/**
+ *  Function will determine the status of all synched objects and depending
+ * on mode will either synch them one way or another or do nothing. If 
+ * this is called by the form submit it will store status information in 
+ * the session for the form to display a interactive interface for dealing 
+ * with the differences between Drupal and Cablecast
+ */
+function cm_cablecast_advanced_synch_synch($start_day, $end_day) {
+  set_time_limit(0);
+  $start = strtotime('now');
+  dsm("starting at " . date('H:m:s', $start));
+
+  //SET FORM VALUES IN SESSION
+  $_SESSION['cm_cablecast_advanced_synch_form_start_day'] = $start_day;
+  $_SESSION['cm_cablecast_advanced_synch_form_end_day'] = $end_day;
+
+  $channel_vocab = taxonomy_vocabulary_machine_name_load('Channel');
+  $terms = entity_load('taxonomy_term', FALSE, 
+		       array('vid' => $channel_vocab->vid));
+
+  $arrays = array(
+		  'cablecast_airings',
+		  'drupal_airings',
+		  'cablecast_only_producers',
+		  'cablecast_only_projects',
+		  'cablecast_only_shows',
+		  'cablecast_only_airings',
+		  'drupal_only_producers',
+		  'drupal_only_projects',
+		  'drupal_only_shows',
+		  'drupal_only_airings',
+		  'cablecast_shows',
+		  'cablecast_projects',
+		  'cablecast_producers',
+		  'drupal_shows',
+		  'drupal_projects',
+		  'drupal_producers',
+		  'drupal_airings_by_cc_id',
+		  'drupal_shows_by_cc_id',
+		  'drupal_projects_by_cc_id',
+		  'drupal_producers_by_cc_id',
+		  'conflicting_airings',
+		  'conflicting_shows',
+		  'conflicting_projects',
+		  'conflicting_producers',
+		  'synched_airings',
+		  'synched_shows',
+		  'synched_projects',
+		  'synched_producers',
+		  
+		  'display',
+		  );
+  foreach($arrays as $name) {
+    $$name = array();
+  }
+
+  $offset = date('Z', strtotime($start_day));
+
+  //FIND ALL DRUPAL AIRINGS
+    $sql = 
+      "SELECT ad.entity_id as d_airing_id, 
+       airing_show.field_airing_show_ref_target_id as d_show_id,
+       adddate(ad.field_airing_date_value, interval $offset SECOND) 
+       AS d_start, 
+       adddate(ad.field_airing_date_value2, interval $offset SECOND) 
+       AS d_end,
+       proj.field_airing_project_ref_target_id as d_project_id,
+       cc.field_cablecast_airing_id_value as cc_airing_id,
+       ac.field_airing_channel_tid as d_channel_tid
+       FROM {field_data_field_airing_date} ad
+       INNER JOIN {field_data_field_airing_channel} ac
+       ON ac.revision_id=ad.revision_id
+       LEFT JOIN {field_data_field_airing_show_ref} airing_show
+       ON airing_show.revision_id=ad.revision_id
+       LEFT JOIN {field_data_field_airing_project_ref} proj
+       ON proj.revision_id=ad.revision_id
+       LEFT JOIN {field_data_field_cablecast_airing_id} cc
+       ON cc.revision_id=ad.revision_id
+       WHERE :end_day >= 
+       adddate(ad.field_airing_date_value, interval $offset SECOND) 
+       AND :start_day <=
+       adddate(ad.field_airing_date_value2, interval $offset SECOND)  
+        ORDER by ad.field_airing_date_value asc";
+    $args = array(
+		  ':start_day' => $start_day. " 00:00:00",
+		  ':end_day' => $end_day." 23:59:59",
+		  );
+
+    $d_airings = db_query($sql, $args);
+
+    while ($d_airing = $d_airings->fetchObject()) {
+      $d_project = isset($d_airing->d_project_id) ? 
+	node_load($d_airing->d_project_id) : NULL;
+
+      if ($d_project) {
+	$drupal_projects[$d_project->nid] = $d_project;
+	$d_airing->d_project_title = $d_project->title;
+	$wrapper = entity_metadata_wrapper('node', $d_project);
+	$d_airing->cc_project_id = 
+	  $wrapper->field_cablecast_project_id->value();
+	if (!$d_airing->cc_project_id) {
+	  $drupal_only_projects[$d_project->nid] = $d_project;
+	}
+	$id = $d_project->nid;
+
+	$cc_project = cablecast_api_get_project($d_airing->cc_project_id);
+	$drupal_projects_by_cc_id[$id] = 
+	    array('drupal' => $d_project, 'cablecast' => $cc_project) ;
+
+      }
+
+      $d_show = isset($d_airing->d_show_id) ? 
+	node_load($d_airing->d_show_id) : NULL;
+      if ($d_show) {
+	$drupal_shows[$d_show->nid] = $d_show;
+	$d_airing->d_show_title = $d_show->title;
+	$wrapper = entity_metadata_wrapper('node', $d_show);
+	$d_airing->cc_show_id = 
+	  $wrapper->field_cablecast_show_id->value();
+	if (!$d_airing->cc_show_id) {
+	  $drupal_only_shows[$d_airing->d_show_id] = $d_show;
+	}
+	else {
+	  $id = $d_airing->cc_show_id;
+	  $cc_show = cablecast_api_server_query('GetShowInformation',
+					       array('ShowID'=>
+						     $d_airing->cc_show_id));
+	  $cc_show = ($cc_show && isset($cc_show->GetShowInformationResult)) ?
+	    $cc_show->GetShowInformationResult : NULL;
+
+	  $drupal_shows_by_cc_id[$id] = 
+	    array('drupal' => $d_show, 'cablecast' => $cc_show) ;
+	}
+
+	if ($d_show->uid) {
+	  $d_airing->d_producer_id = $d_show->uid;
+	  $d_producer = user_load($d_show->uid);
+	  $drupal_producers[$d_producer->uid] = $d_producer;
+	  $wrapper = entity_metadata_wrapper('user', $d_producer);
+	  $d_airing->cc_producer_id = 
+	    $wrapper->field_cablecast_producer_id->value();
+	
+	  if (!$d_airing->cc_producer_id) {
+	    $drupal_only_producers[$d_airing->d_producer_id] = $d_producer;
+	  }
+	  else {
+	    $id = $d_airing->cc_producer_id;
+
+	    $params = 
+	      array(
+		    'ProducerID' => $id,
+		    'username' => 
+		    variable_get('cm_cablecast_server_username', NULL),
+		    'password'=> 
+		    variable_get('cm_cablecast_server_password', NULL),
+		    );
+	    
+	    $cc_producer = cablecast_api_server_query('GetProducerInfo', 
+						     $params);
+	    $cc_producer = 
+	      ($cc_producer && isset($cc_producer->GetProducerInfoResult)) ? 
+	       $cc_producer->GetProducerInfoResult : NULL;
+
+	    $drupal_producers_by_cc_id[$id] = 
+	      array('drupal' => $d_producer, 'cablecast' => $cc_producer) ;
+	  }
+	}
+
+      }
+	
+      if (!$d_airing->cc_airing_id) {
+	$id = $d_airing->d_airing_id;
+	$drupal_only_airings[$id] = $d_airing;
+	$display[$d_airing->d_start] = $display[$d_airing->d_start] ?
+	  $display[$d_airing->d_start] : array();
+	
+	$display[$d_airing->d_start][] = array('drupal'=>$id,
+					       'cablecast'=>NULL);
+
+      }
+      else {
+	$id = $d_airing->d_airing_id;
+	$drupal_airings_by_cc_id[$id] = $d_airing;
+      }
+      
+      $drupal_airings[$id] = $d_airing;
+    }
+  
+  reset($terms);
+  foreach($terms as $tid=>$term) {
+    
+    $channel = cm_cablecast_advanced_synch_get_cablecast_channel_id($tid);
+  
+    // setup data array for SOAP call
+    $data = array(
+		  'ChannelID' => $channel,
+		  'FromDate' => date('c', strtotime($start_day)),
+		  'ToDate' => date('c', strtotime($end_day)),
+		  'restrictToShowID' => 0,
+		  );
+
+    $results = cablecast_api_server_query('GetScheduleInformation', $data);
+    if ($results && 
+	isset($results->GetScheduleInformationResult->ScheduleInfo)) {
+      $schedule = $results->GetScheduleInformationResult->ScheduleInfo;
+    }
+    else {
+      continue;
+    }
+
+    if (isset($schedule->ScheduleID)) {
+      $schedule = array($schedule);
+    }
+
+    foreach($schedule as $cc_airing) {
+      $cc_airing->StartTime = str_replace("T", " ", $cc_airing->StartTime);
+      $cc_airing->EndTime = str_replace("T", " ", $cc_airing->EndTime);
+      $cc_airing->Channel = $channel;
+      $cablecast_airings[$cc_airing->ScheduleID] = $cc_airing;
+
+      if (isset($drupal_shows_by_cc_id[$cc_airing->ShowID]) &&
+	  $drupal_shows_by_cc_id[$cc_airing->ShowID]) {
+	$cc_show = $drupal_shows_by_cc_id[$cc_airing->ShowID]['cablecast'];
+	$d_show = $drupal_shows_by_cc_id[$cc_airing->ShowID]['drupal'];
+
+      }
+      else {
+	$cc_show = cablecast_api_server_query('GetShowInformation', 
+					  array('ShowID'=> 
+						$cc_airing->ShowID));
+
+	$cc_show = ($cc_show && isset($cc_show->GetShowInformationResult)) ?
+	  $cc_show->GetShowInformationResult : NULL;
+
+	$d_show_id = 
+	  db_query("SELECT entity_id 
+                  FROM {field_data_field_cablecast_show_id} 
+                  WHERE field_cablecast_show_id_value = :cc_show_id", 
+		   array(':cc_show_id'=>$cc_airing->ShowID))->fetchField();
+
+	$d_show = $d_show_id ? node_load($d_show_id) : NULL;
+      }
+      if (!$cc_show) {
+	drupal_set_message("Error Code: 97912 NO CC SHOW FOR ".
+			   $cc_airing->ShowID, "error");
+	continue;
+      }
+
+      $cablecast_shows[$cc_airing->ShowID] = $cc_show;
+      if (isset($d_show) && $d_show) {
+	//COMPARE DRUPAL SHOW TO CABLECAST SHOW
+	$cc_show_shared_fields = 
+	  cm_cablecast_advanced_synch_get_shared_fields($cc_show, 'show', 
+							'cablecast');
+	$d_show_shared_fields = 
+	  cm_cablecast_advanced_synch_get_shared_fields($d_show, 'show', 
+							'drupal');
+	$diffs =  
+	  cm_cablecast_advanced_synch_conflicting_fields(
+						 $d_show_shared_fields,
+						 $cc_show_shared_fields
+							 );   
+	if ($diffs) {
+	  $conflicting_shows[$cc_airing->ShowID] = $diffs;
+	}
+	else {
+	  $synched_shows[$cc_airing->ShowID] = $cc_show;
+	}
+      }
+      else {
+	$cablecast_only_shows[$cc_airing->ShowID] = $cc_show;
+      }
+    
+      ///////////////////////////////////////////////////////////////
+      //FETCH CABLECAST PROJECT INFORMATION AND COMPARE IT WITH DRUPAL
+      if (isset($drupal_projects_by_cc_id[$cc_show->ProjectID]) &&
+	  $drupal_projects_by_cc_id[$cc_show->ProjectID]) {
+	$cc_project = 
+	  $drupal_projects_by_cc_id[$cc_show->ProjectID]['cablecast'];
+
+	$d_project = 
+	  $drupal_projects_by_cc_id[$cc_show->ProjectID]['drupal'];
+
+      }
+      else {
+	$cc_projects = cablecast_api_server_query('GetProjects', 
+						 array('ChannelID'=> 1));
+	// return project_id if the Project is found
+	foreach ($cc_projects->GetProjectsResult->Project as $project) {
+	  if ($project->ProjectID == $cc_show->ProjectID) {
+	    $cc_project = $project;
+	  }
+	}
+
+	$d_project_id = 
+	  db_query("SELECT entity_id 
+                    FROM {field_data_field_cablecast_project_id} 
+                    WHERE field_cablecast_project_id_value = :cc_project_id", 
+		   array(':cc_project_id' => 
+			 $cc_show->ProjectID))->fetchField();
+
+	$d_project = $d_project_id ? node_load($d_project_id) : NULL;
+      }
+      if (!$cc_project) {
+	drupal_set_message("Error Code: 51112 NO CC PROJECT FOR ".
+			   $cc_show->ProjectID, "error");
+	continue;
+      }
+
+      $cablecast_projects[$cc_show->ProjectID] = $cc_project;
+      if (isset($d_project) && $d_project) {
+	
+	//COMPARE DRUPAL PROJECT TO CABLECAST PROJECT
+	$cc_project_shared_fields = 
+	  cm_cablecast_advanced_synch_get_shared_fields($cc_project, 
+							'project', 
+							'cablecast');
+	$d_project_shared_fields = 
+	  cm_cablecast_advanced_synch_get_shared_fields($d_project, 
+							'project', 
+							'drupal');
+	$diffs =  
+	  cm_cablecast_advanced_synch_conflicting_fields(
+						 $d_project_shared_fields,
+						 $cc_project_shared_fields
+							 );   
+	if ($diffs) {
+	  $conflicting_projects[$cc_show->ProjectID] = $diffs;
+	}
+	else {
+	  $synched_projects[$cc_show->ProjectID] = $cc_project;
+	}	
+      }
+      else {
+	$cablecast_only_projects[$cc_show->ProjectID] = $cc_project;
+      }
+
+      ///////////////////////////////////////////////////////////////
+      //FETCH CABLECAST PRODUCER INFORMATION AND COMPARE IT WITH DRUPAL
+      if (isset($drupal_producers_by_cc_id[$cc_show->ProducerID]) &&
+	  $drupal_producers_by_cc_id[$cc_show->ProducerID]) {
+	$cc_producer = 
+	  $drupal_producers_by_cc_id[$cc_show->ProducerID]['cablecast'];
+
+	$d_producer = 
+	  $drupal_producers_by_cc_id[$cc_show->ProducerID]['drupal'];
+
+      }
+      else {
+	$params = array(
+			'ProducerID'=> $cc_show->ProducerID,
+			);
+	$cc_producer = cablecast_api_server_query('GetProducerInfo', 
+						 $params);
+	
+	$cc_producer = 
+	  ($cc_producer && isset($cc_producer->GetProducerInfoResult)) ? 
+	  $cc_producer->GetProducerInfoResult : NULL;
+	
+	$d_producer_id = 
+	  db_query("SELECT entity_id 
+                    FROM {field_data_field_cablecast_producer_id} 
+                    WHERE field_cablecast_producer_id_value = 
+                    :cc_producer_id", 
+		   array(':cc_producer_id' => 
+			 $cc_show->ProducerID))->fetchField();
+
+	$d_producer = $d_producer_id ? user_load($d_producer_id) : NULL;
+      }
+      if (!$cc_producer) {
+	drupal_set_message("Error Code: 517212 NO CC PRODUCER FOR ".
+			   $cc_show->ProducerID, "error");
+	
+	continue;
+      }
+
+      if ($cc_show->ProducerID && $cc_show->ProducerID > 0) {
+	$cablecast_producers[$cc_show->ProducerID] = $cc_producer;
+      }
+
+      if (isset($d_producer) && $d_producer) {
+	//COMPARE DRUPAL PRODUCER TO CABLECAST PRODUCER
+	$cc_producer_shared_fields = 
+	  cm_cablecast_advanced_synch_get_shared_fields($cc_producer, 
+							'producer', 
+							'cablecast');
+	$d_producer_shared_fields = 
+	  cm_cablecast_advanced_synch_get_shared_fields($d_producer, 
+							'producer', 
+							'drupal');
+	$diffs =  
+	  cm_cablecast_advanced_synch_conflicting_fields(
+						 $d_producer_shared_fields,
+						 $cc_producer_shared_fields
+							 );   
+	if ($diffs) {
+	  $conflicting_producers[$cc_show->ProducerID] = $diffs;
+	}
+	else {
+	  $synched_producers[$cc_show->ProducerID] = $cc_producer;
+	}
+      }
+      else {
+	if ($cc_show->ProducerID && $cc_show->ProducerID > 0) {
+	  $cablecast_only_producers[$cc_show->ProducerID] = $cc_producer;
+	}
+      }
+
+      if ($cc_show) {
+	$cc_airing->ProducerID = $cc_show->ProducerID;
+	$cc_airing->ProjectID = $cc_show->ProjectID;
+      }
+
+      //FIXME DO THE AIRING CONFLICT THEN IF NO CONFLICT STORE IN SYNCHED 
+      //ARARYS
+      /////////////////////////////////////////////////////////////////
+      //FETCH BOTH AIRING OBJECTS AND COMPARE IF NECESSARY
+      $d_airing_id = 
+	db_query("SELECT entity_id 
+                  FROM {field_data_field_cablecast_airing_id} 
+                  WHERE field_cablecast_airing_id_value = :cc_airing_id", 
+		 array(':cc_airing_id'=>
+		       $cc_airing->ScheduleID))->fetchField();
+
+      if (!$d_airing_id || !isset($drupal_only_airings[$d_airing_id])) {
+	$display[$cc_airing->StartTime] = $display[$cc_airing->StartTime] ?
+	  $display[$cc_airing->StartTime] : array();
+	$display[$cc_airing->StartTime][] = 
+	  array('drupal'=>$d_airing_id,
+		'cablecast'=>$cc_airing->ScheduleID);
+      }
+
+      if (!$d_airing_id) {
+	$cablecast_only_airings[$cc_airing->ScheduleID] = 
+	  $cc_airing;
+      }
+      else {
+	$d_airing = $drupal_airings[$d_airing_id];
+
+	if (!$d_airing) {
+	  drupal_set_message("Error Code 8989: ".
+			     "Airing " . $cc_airing->ScheduleID .
+			     " found in Cablecast but not Drupal");
+	  $cablecast_only_airings[$cc_airing->ScheduleID] = $cc_airing;
+	}
+	else {
+	  $cc_airing_shared_fields = 
+	    cm_cablecast_advanced_synch_get_shared_fields($cc_airing, 
+							  'airing', 
+							  'cablecast');
+	  $d_airing_shared_fields = 
+	    cm_cablecast_advanced_synch_get_shared_fields($d_airing, 
+							  'airing', 
+							  'drupal');
+	  $diffs =  
+	    cm_cablecast_advanced_synch_conflicting_fields(
+						      $d_airing_shared_fields,
+						      $cc_airing_shared_fields
+							   );   
+	  if ($diffs) {
+	    $conflicting_airings[$cc_airing->ScheduleID] = $diffs;
+	  }
+	  else {
+	    $synched_airings[$cc_show->ProjectID] = $cc_project;
+	  }
+	}
+      }
+    }
+  }
+  ksort($display);
+
+  $data =  array();
+  foreach($arrays as $name) {
+    $data[$name] = $$name;
+  }
+
+
+  $counter = 0;
+  foreach ($display as $time=>$airings) {
+    foreach ($airings as $airing) {
+      $counter++;
+    }
+  }
+
+
+  $data['combined_airing_count'] = $counter;
+
+  $_SESSION['cm_cablecast_advanced_synch_data'] = $data;
+      
+  dsm($data, 'my data');
+  dsm("Completed in  " . (strtotime('now') - $start). " seconds");    
+
+}
+
+/**
+ * Function is passed two arrays and returns an array that has all the 
+ * differing values still keyed to their field name
+ * 
+ * @param $drupal: an array of the drupal data
+ * @param $cablecast: an array of the cablecast data
+ * @return $diff: the array that has the name/value pairs of the differing
+ * values
+ */
+function cm_cablecast_advanced_synch_conflicting_fields($drupal, $cablecast) {
+  
+  $ret = array();
+
+  if (array_diff_key($drupal, $cablecast)) {
+    drupal_set_message("Error Code 83782: Mismatched array comparison", 
+		       'error');
+    dsm($drupal, 'drupal array');
+    dsm($cablecast, 'cablecast array');
+    return $ret;
+  }
+
+  foreach ($drupal as $name=>$value) {
+    if ($value != $cablecast[$name]) {
+      $ret[$name] = array('drupal'=>$value,'cablecast'=>$cablecast[$name]);
+    }
+  }
+  return $ret;
+}
+
+/**
+ * Function will build an array out of either a Drupal or Cablecast object of 
+ * the field/value pairs that are shared between Drupal
+ * @param $object: the source object/array to build a shared fields array
+ * @param $type: the type of object, Airing, Show, Project, Producer
+ * @param $side: Drupal or Cablecast
+ *
+ * @return $ret an array with the field/value pairs of the Cablecast Drupal
+ * shared fields for the object
+ */
+function cm_cablecast_advanced_synch_get_shared_fields($object, $type, $side){
+  $ret = array();
+
+  switch ($type) {
+  case "airing":
+    switch ($side) {
+    case "cablecast": 
+      $cc_show_id = $object->ShowID;
+      $title = $object->ShowTitle;
+      $start = $object->StartTime;
+      $end = $object->EndTime;
+      $project_id = $object->ProjectID;
+      $producer_id = $object->ProducerID;
+      break;
+    case "drupal":
+      $cc_show_id = $object->cc_show_id;
+      $title = $object->d_show_title;
+      $start = $object->d_start;
+      $end = $object->d_end;
+      $project_id = $object->cc_project_id;
+      $producer_id = $object->cc_producer_id;
+      break;
+    }
+    $ret = array(
+		 'ShowID' => $cc_show_id,
+		 'ShowTitle' => $title,
+		 'StartTime' => $start,
+		 'EndTime' => $end,
+		 'ProducerID' => $producer_id,
+		 );
+
+    break;
+  case "show":
+    switch ($side) {
+    case "cablecast":
+      $title = $object->InternalTitle;
+      $cg_title = $object->Title; 
+      $project_id = $object->ProjectID;
+      $producer_id = $object->ProducerID;
+      $category_id = $object->CategoryID;
+      $category = $object->Category;
+      $comments = $object->Comments;
+      $length = $object->TotalSeconds;
+
+      $tv_guide_description = '';
+      $distrib_agreement = '';
+      $show_type = '';
+      $prod_location = '';
+      $filler_end_date = '';
+      $filler = '';
+      $can = '';
+      $safe_harbor = '';
+
+      if (isset($object->CustomFields) && 
+	  isset($object->CustomFields->CustomField)) {
+	foreach( $object->CustomFields->CustomField as $name_value_pair) {
+	  if (!isset($name_value_pair->Name)) {
+	    continue;
+	  }
+	  if ($name_value_pair->Name == 'Filler') {
+	    $filler = $name_value_pair->Value;
+	  }
+	  else if ($name_value_pair->Name == 'TVGuide') {
+	    $tv_guide_description = $name_value_pair->Value;
+	  }
+	  else if ($name_value_pair->Name == 'Distribution Agreement') {
+	    $distrib_agreement = $name_value_pair->Value;
+	  }
+	  else if ($name_value_pair->Name == 'Show Type') {
+	    $show_type = $name_value_pair->Value;
+	  }
+	  else if ($name_value_pair->Name == 'Production Location') {
+	    $prod_location = $name_value_pair->Value;
+	  }
+	  else if ($name_value_pair->Name == 'Filler End Date') {
+	    $filler_end_date = $name_value_pair->Value;
+	  }
+	  else if ($name_value_pair->Name == 'CAN') {
+	    $can = $name_value_pair->Value;
+	  } 
+	  else if ($name_value_pair->Name == 'Safe Harbor') {
+	    $safe_harbor = $name_value_pair->Value;
+	  }
+	}
+      }
+      break;
+    case "drupal":
+      $show_wrapper = entity_metadata_wrapper('node', $object);
+      $special_title = $show_wrapper->field_show_special_title ?
+	$show_wrapper->field_show_special_title->value() : "";
+
+      $title = $special_title ? $special_title : $object->title;
+      $tv_guide_title = $show_wrapper->field_tv_guide_title ?
+	$show_wrapper->field_tv_guide_title->value() : "";
+
+      $cg_title = $tv_guide_title ? $tv_guide_title : $object->title;
+      
+      try {
+	$nid = (isset($show_wrapper->og_group_ref) && 
+		isset($show_wrapper->og_group_ref->nid)) ?
+	  $show_wrapper->og_group_ref->nid->value() : 0;
+      }
+      catch (Exception $e) {
+	$nid = 0;
+      }
+
+      $drupal_project = $nid ? node_load($nid) : NULL;
+      $project_wrapper = $drupal_project ?  
+	entity_metadata_wrapper('node', $drupal_project) : NULL;
+
+      $project_id = ($project_wrapper && 
+	$project_wrapper->field_cablecast_project_id) ? 
+	$project_wrapper->field_cablecast_project_id->value() : NULL;
+      
+      $drupal_producer = $object->uid ? user_load($object->uid) : NULL;
+
+      $producer_wrapper = $drupal_producer ?  
+	entity_metadata_wrapper('user', $drupal_producer) : NULL;
+
+      $producer_id = ($producer_wrapper &&
+	$producer_wrapper->field_cablecast_producer_id) ?
+	$producer_wrapper->field_cablecast_producer_id->value() : NULL;
+
+      //FIXME: FIGURE OUT HOW TO SET CATEGORY ID IN DRUPAL/CABLECAST, ONCE
+      //FIXED THEN FIGURE OUT WHETHER TO DISPLAY NAME OR ID OR BOTH
+      $category_id = 1;
+
+      $category = $show_wrapper->field_pbcore_genres ?
+	$show_wrapper->field_pbcore_genres->value()->name : "";
+
+      $length = $show_wrapper->field_runtime ?
+	$show_wrapper->field_runtime->value() : 1;
+      
+      $tv_guide_description = $show_wrapper->field_short_description ?
+	$show_wrapper->field_short_description->value() : "";
+
+      //FIXME HOW TO SET THIS FOR LEGACY, DO WE REALLY EVEN NEED THIS FIELD
+      $distrib_agreement = '';
+      //FIXME: IS THIS REALLY WHAT IT MEANS?
+      //from aric: The values on it are Studio, Field and Content Only
+      $show_type = "";
+
+      $prod_location = isset($show_wrapper->field_where_produced) ?
+	$show_wrapper->field_where_produced->value()->name : "";
+
+      $filler = (isset($show_wrapper->field_filler) &&
+		 $show_wrapper->field_filler->value()) ? 'Yes' : 'No';
+
+      $filler_end_date = $show_wrapper->field_filler_end_date ?
+	date('Y-m-d', $show_wrapper->field_filler_end_date->value()) : "";
+
+      $can = (isset($show_wrapper->field_can11) && 
+	$show_wrapper->field_can11->value()) ? "Yes" : "No";
+
+      $safe_harbor = (isset($show_wrapper->field_objectionable_content) &&
+		      $show_wrapper->field_objectionable_content->Value()) ? 
+	"Yes" : "No";
+
+      break;
+    }
+    $ret = array(
+		 'Title' => $title,
+		 'CGTitle' => $cg_title,
+		 'ProjectID' => $project_id,
+		 'ProducerID' => $producer_id,
+		 'CategoryID' => $category_id,
+		 'Category' => $category,
+		 //FIXME: ADD COMMENTS FIELD
+		 //'Comments' => $comments,
+		 'LengthSeconds' => $length,
+		 'TVGuide' => $tv_guide_description,
+		 'Distribution Agreement' => $distrib_agreement,
+		 'Show Type' => $show_type,
+		 'Production Location' => $prod_location,
+		 'Filler' => $filler,
+		 'Filler End Date' => $filler_end_date,
+		 'CAN' => $can,
+		 'Safe Harbor' => $safe_harbor,
+		 );
+    break;
+  case "project":
+    switch ($side) {
+    case "cablecast":
+      $title = $object->Name;
+      $producer_id = $object->ProducerID;
+      break;
+    case "drupal":
+      $title = $object->title;
+      $drupal_producer = $object->uid ? user_load($object->uid) : NULL;
+
+      $producer_wrapper = $drupal_producer ?  
+	entity_metadata_wrapper('user', $drupal_producer) : NULL;
+
+      $producer_id = ($producer_wrapper &&
+	$producer_wrapper->field_cablecast_producer_id) ?
+	$producer_wrapper->field_cablecast_producer_id->value() : NULL;
+
+      break;
+    }
+    $ret = array(
+		 'Title' => $title,
+		 'ProducerID' => $producer_id,
+		 );
+    break;
+
+  case "producer":
+    switch ($side) {
+    case "cablecast":
+      $name = isset($object->ProducerName) ? $object->ProducerName : "";
+      $email = isset($object->Email) ? $object->Email : "";
+      $contact_name = isset($object->ProducerName) ? $object->ProducerName
+	: "";
+      break;
+    case "drupal":
+      $name = isset($object->display_name) ? $object->display_name : "";
+      $email = isset($object->mail) ? $object->mail : "";
+      $contact_name = isset($object->display_name) ? 
+	$object->display_name : "";
+      break;
+    }
+    $ret = array(
+		 'ProducerName' => $name,
+		 'ContactName' => $contact_name,
+		 'Email' => $email,
+		 );
+    break;
+  }
+  if (!$ret) {
+    drupal_set_message("Error Code 3891:Couldn't build array for $side $type",
+		       'error');
+    dsm($object, "Error Code 3891:Couldn't build array for $side $type");
+  }
+  return $ret;
+}
+
+
+/**
+ * Builds the admininstration settings form.
+ */
+function cm_cablecast_advanced_synch_admin_settings($form, &$form_state) {
+  $form = array();
+
+  $form['cm_cablecast_advanced_synch'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Community Media Advanced Synch Cablecast Settings'),
+    '#collapsable' => FALSE,
+  );
+
+  //FIXME: FILL OUT AND MAKE A FUNCITON SINCE ITS USED TWICE
+  $synch_type_help_text = 
+    "<i>Types:
+       <ul>
+         <li>None: 
+         <li>Staff Choice:
+         <li>Automatic Drupal:
+         <li>Automatic Cablecast:
+       </ul></i>";
+
+  $form['cm_cablecast_advanced_synch']['cm_cablecast_advanced_synch_mode'] = 
+    array(
+	  '#type' => 'select',
+	  '#title' => t('Advanced Synch Mode'),
+	  '#default_value' => variable_get('cm_cablecast_advanced_synch_mode',
+					   'none'),
+	  '#options' => array('none' => t('None'),
+			      'staff' => t('Staff Choice'),
+			      'auto-drupal' => t('Automatic Drupal'),
+			      'auto-cablecast' => t('Automatic Cablecast'),
+			      ),
+	  '#description' => $synch_type_help_text,
+	  );
+
+  $form = system_settings_form($form);
+  return ($form);
+}
+
+/**
+ * Implements hook_form_alter
+ * @param $form
+ * @param $form_id
+ */
+function cm_cablecast_advanced_synch_form_alter(&$form, &$form_state, $form_id) {
+  //////////////////////////////////////////////////////////////////////////
+  //
+  if (isset($form['#entity']) && $form['#entity_type'] == 'airing') {
+    //FIXME
+    //CHECK THE cm_cablecast_advanced_synch_mode
+    //IF 'none' RETURN 
+
+    //GET CABLECAST SHOW FOR CABLECAST ID
+
+    //COMPARE THE CABLECAST SHOW RUNS? WITH DRUPAL AIRING (OTHER AIRINGS TOO?)
+
+    //IF 'staff' FORWARD THEM TO THE RESOLUTION FORM
+
+    //IF 'auto' UPDATE THE DRUPAL ENTITY (SHOW TOO?)
+  }
+
+  else if ($form_id == 'cm_show_node_form') {
+    //FIXME
+    //CHECK THE cm_cablecast_advanced_synch_mode
+    //IF 'none', RETURN
+
+    //GET CABLECAST SHOW FOR CABLECAST ID
+
+    //COMPARE THE CABLECAST SHOW WITH THE DRUPAL SHOW
+
+    //IF THE ARE THE SAME, RETURN
+
+    //IF 'staff' FORWARD THEM TO THE RESOLUTION FORM 
+
+    //IF 'auto' UPDATE THE DRUPAL NODE
+
+  }
+
+}
+
+
+function cm_cablecast_advanced_synch_get_cablecast_channel_id($tid) {
+  //$term = taxonomy_term_load($tid);
+  //FIXME: CONVERT THIS INTO SETTINGS FORM VARIABLES
+  // THIS IS CURRENTLY HARDCODED FOR PCM
+  // NEED TO BE QUERIED AND CACHED
+  
+//   <option value="1">Channel 11</option>
+//   <option value="2">Channel 22</option>
+//   <option value="3">Channel 23</option>
+//   <option value="4">Channel 29</option>
+//   <option value="5">Channel 30</option>
+//   <option value="6">Channel 30E</option>
+//   <option value="0">Record</option>
+  
+  switch($tid) {
+    case 814:
+      return 1;
+      break;
+    case 815:
+      return 2;
+      break;
+    case 816:
+      return 3;
+      break;
+    case 817:
+      return 4;
+      break;  
+    case 818:
+      return 5;
+      break;
+    case 819:
+      return 6;
+      break;    
+  }
+}
+
+function cm_cablecast_advanced_synch_get_channel_label($id, $type) {
+  $channel_vocab = taxonomy_vocabulary_machine_name_load('Channel');
+  $terms = entity_load('taxonomy_term', FALSE, 
+			 array('vid' => $channel_vocab->vid));
+  
+  if ($type == 'cablecast') {
+    foreach($terms as $tid=>$term) {
+      $cc_id = 
+	cablecast_api_get_single_field_value($term, 
+					     'field_cablecast_channel_id',
+					     'value');
+      if ($id==$cc_id) {
+	return $term->name;
+      }
+    }
+  }
+  else {
+    if (isset($terms[$id])) {
+      return $terms[$id]->name;
+    }
+  }
+  return $id;
+}
+
